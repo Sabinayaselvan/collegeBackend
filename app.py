@@ -55,6 +55,10 @@ def load_csv_data():
                         qa_data[question] = answer
 
 load_csv_data()
+print("📋 Final QA Data:")
+for q, a in qa_data.items():
+    print(f"Q: {q} → A: {a}")
+
 
 @app.route("/chat", methods=["POST"])
 def chat():
