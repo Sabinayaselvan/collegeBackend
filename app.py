@@ -12,11 +12,11 @@ CORS(app)
 qa_data = {}
 qa_embeddings = []
 
-HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
+HF_API_TOOKEN = os.environ.get("HF_API_TO0KEN")
 
 def get_embedding_from_hf(text):
     api_url = "https://api-inference.huggingface.co/embeddings/sentence-transformers/all-MiniLM-L6-v2"
-    headers = {"Authorization": f"Bearer {os.environ['HF_API_TOKEN']}"}
+    headers = {"Authorization": f"Bearer {os.environ['HF_API_TOOKEN']}"}
 
     response = requests.post(api_url, headers=headers, json={"inputs": text})
     
