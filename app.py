@@ -16,7 +16,7 @@ HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
 
 def get_embedding_from_hf(text):
     api_url = "https://api-inference.huggingface.co/embeddings/sentence-transformers/all-MiniLM-L6-v2"
-    headers = {"Authorization": f"Bearer ['HF_API_TOKEN']"}
+    headers = {"Authorization": f"Bearer {os.environ['HF_API_TOKEN']}"}
 
     response = requests.post(api_url, headers=headers, json={"inputs": text})
     
