@@ -12,29 +12,25 @@ CORS(app)
 qa_data = {}
 qa_embeddings = []
 
-HF_API_TOOKEN = os.environ.get("HF_API_TOOKEN")
+# ✅ Correct environment variable name
+HF_API_KEY = os.environ.get("HF_API_KEY")
 
 def get_embedding_from_hf(text):
-    api_url = "https://api-inference.huggingface.co/embeddings/sentence-transformers/all-MiniLM-L6-v2"
-    headers = {"Authorization": f"Bearer {os.environ['HF_API_TOOKEN']}"}
+    api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+    headers = {
+        "Authorization": f"Bearer {HF_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
     response = requests.post(api_url, headers=headers, json={"inputs": text})
-    
+
     if response.status_code == 200:
-        # Successful embedding
-        embedding_data = response.json()
-        if 'embedding' in embedding_data:
-            return np.array(embedding_data['embedding']).reshape(1, -1)
-        else:
-            print("No 'embedding' key found in response.")
-            print(embedding_data)
+        embedding = response.json()
+        return np.array(embedding).reshape(1, -1)
     else:
-        # Log error
-        print("Hugging Face API error:", response.status_code)
+        print("❌ Hugging Face API error:", response.status_code)
         print(response.text)
-    
-    # Return a fallback dummy vector if API fails
-    return np.zeros((1, 384))
+        return np.zeros((1, 384))  # fallback vector
 
 
 def load_csv_data():
@@ -50,9 +46,9 @@ def load_csv_data():
     for filename in os.listdir(data_folder):
         if filename.endswith(".csv"):
             file_path = os.path.join(data_folder, filename)
-
             encodings_to_try = ["utf-8", "ISO-8859-1", "latin1"]
             rows = []
+
             for enc in encodings_to_try:
                 try:
                     with open(file_path, "r", newline='', encoding=enc) as f:
@@ -83,15 +79,10 @@ def load_csv_data():
                     answer = row[a_index].strip()
                     if question and answer:
                         qa_data[question] = answer
-                        # Hugging Face embedding
                         embedding = get_embedding_from_hf(question)
                         qa_embeddings.append((question, answer, embedding))
 
 load_csv_data()
-
-print("📋 Final QA Data:")
-for q, a in qa_data.items():
-    print(f"Q: {q} → A: {a}")
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -127,6 +118,7 @@ def chat():
         return jsonify({"response": best_answer})
 
     return jsonify({"response": "Sorry, I don't have an answer for that yet."})
+
 
 @app.route("/")
 def home():
