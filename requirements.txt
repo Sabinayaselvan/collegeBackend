@@ -1,5 +1,3 @@
 flask
 flask-cors
 sentence-transformers
-torch
-git-filter-repo==2.47.0
