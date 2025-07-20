@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from sentence_transformers import SentenceTransformer, util
 import os
 import csv
-import torch
-# temporary test update
+import requests
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
 app = Flask(__name__)
 CORS(app)
@@ -12,8 +12,15 @@ CORS(app)
 qa_data = {}
 qa_embeddings = []
 
-# Load the SentenceTransformer model
-model = SentenceTransformer('all-MiniLM-L6-v2')
+HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
+
+def get_embedding_from_hf(text):
+    headers = {
+        "Authorization": f"Bearer {HF_API_TOKEN}"
+    }
+    API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+    response = requests.post(API_URL, headers=headers, json={"inputs": text})
+    return np.array(response.json()[0]).reshape(1, -1)
 
 def load_csv_data():
     global qa_data, qa_embeddings
@@ -61,8 +68,8 @@ def load_csv_data():
                     answer = row[a_index].strip()
                     if question and answer:
                         qa_data[question] = answer
-                        # Add semantic embedding
-                        embedding = model.encode(question, convert_to_tensor=True)
+                        # Hugging Face embedding
+                        embedding = get_embedding_from_hf(question)
                         qa_embeddings.append((question, answer, embedding))
 
 load_csv_data()
@@ -86,18 +93,22 @@ def chat():
         if question in user_input or user_input in question:
             return jsonify({"response": answer})
 
-    # ✅ Semantic match using cosine similarity
-    user_embedding = model.encode(user_input, convert_to_tensor=True)
+    # ✅ Semantic match via Hugging Face
+    try:
+        user_embedding = get_embedding_from_hf(user_input)
+    except Exception as e:
+        return jsonify({"response": f"Embedding error: {str(e)}"}), 500
+
     best_score = 0.0
     best_answer = None
 
     for question, answer, embedding in qa_embeddings:
-        score = util.pytorch_cos_sim(user_embedding, embedding)[0][0].item()
+        score = cosine_similarity(user_embedding, embedding)[0][0]
         if score > best_score:
             best_score = score
             best_answer = answer
 
-    if best_score > 0.6:  # Adjust threshold as needed
+    if best_score > 0.6:
         return jsonify({"response": best_answer})
 
     return jsonify({"response": "Sorry, I don't have an answer for that yet."})
