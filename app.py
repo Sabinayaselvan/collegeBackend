@@ -15,12 +15,27 @@ qa_embeddings = []
 HF_API_TOKEN = os.environ.get("HF_API_TOKEN")
 
 def get_embedding_from_hf(text):
-    headers = {
-        "Authorization": f"Bearer {HF_API_TOKEN}"
-    }
-    API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
-    response = requests.post(API_URL, headers=headers, json={"inputs": text})
-    return np.array(response.json()[0]).reshape(1, -1)
+    api_url = "https://api-inference.huggingface.co/embeddings/sentence-transformers/all-MiniLM-L6-v2"
+    headers = {"Authorization": f"Bearer {os.environ['HF_TOKEN']}"}
+
+    response = requests.post(api_url, headers=headers, json={"inputs": text})
+    
+    if response.status_code == 200:
+        # Successful embedding
+        embedding_data = response.json()
+        if 'embedding' in embedding_data:
+            return np.array(embedding_data['embedding']).reshape(1, -1)
+        else:
+            print("No 'embedding' key found in response.")
+            print(embedding_data)
+    else:
+        # Log error
+        print("Hugging Face API error:", response.status_code)
+        print(response.text)
+    
+    # Return a fallback dummy vector if API fails
+    return np.zeros((1, 384))
+
 
 def load_csv_data():
     global qa_data, qa_embeddings
