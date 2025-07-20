@@ -12,7 +12,7 @@ CORS(app)
 qa_data = {}
 qa_embeddings = []
 
-# ✅ Correct environment variable name
+# ✅ Make sure this matches your Render environment variable name
 HF_API_KEY = os.environ.get("HF_API_KEY")
 
 def get_embedding_from_hf(text):
@@ -26,19 +26,18 @@ def get_embedding_from_hf(text):
         response = requests.post(api_url, headers=headers, json={"inputs": text})
         if response.status_code == 200:
             embedding = response.json()
-            # Some models return nested list: [[...]], others: [...]
-            if isinstance(embedding[0], list):
-                return np.array(embedding).reshape(1, -1)
+            # ✅ Handle both [[...]] and [...] formats
+            if isinstance(embedding, list) and isinstance(embedding[0], list):
+                return np.array(embedding[0]).reshape(1, -1)
             else:
-                return np.array([embedding])
+                return np.array(embedding).reshape(1, -1)
         else:
             print("❌ Hugging Face API error:", response.status_code)
             print(response.text)
-            return np.zeros((1, 384))  # fallback
+            return np.zeros((1, 384))  # fallback if error
     except Exception as e:
         print("❌ Exception during embedding:", str(e))
-        return np.zeros((1, 384))  # fallback
-
+        return np.zeros((1, 384))  # fallback if exception
 
 def load_csv_data():
     global qa_data, qa_embeddings
@@ -89,6 +88,7 @@ def load_csv_data():
                         embedding = get_embedding_from_hf(question)
                         qa_embeddings.append((question, answer, embedding))
 
+# Load all CSV Q&A pairs on startup
 load_csv_data()
 
 @app.route("/chat", methods=["POST"])
@@ -106,7 +106,7 @@ def chat():
         if question in user_input or user_input in question:
             return jsonify({"response": answer})
 
-    # ✅ Semantic match via Hugging Face
+    # ✅ Semantic similarity using Hugging Face embeddings
     try:
         user_embedding = get_embedding_from_hf(user_input)
     except Exception as e:
@@ -125,7 +125,6 @@ def chat():
         return jsonify({"response": best_answer})
 
     return jsonify({"response": "Sorry, I don't have an answer for that yet."})
-
 
 @app.route("/")
 def home():
